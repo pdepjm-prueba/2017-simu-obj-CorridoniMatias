@@ -4,19 +4,38 @@ class Empleado
 	var tareasRealizadas = []
 	var rol
 	
-	constructor(_rol)
+	constructor(_rol, _stamina)
 	{
 		rol = _rol
+		stamina = _stamina
 	}
+	
+	method multiplicadorDificultad()
+	
+	method reducirEstaminaPorDefender()
+	{
+		self.reducirStamina(rol.estaminaPorDefender(stamina))
+	}
+	
+	method reducirEstaminaPorLimpiar(staminaUsada)
+	{
+		self.reducirStamina(rol.estaminaPorLimpiar(stamina, staminaUsada))
+	}
+	
+	method puedeLimiparSiempre() = rol.puedeLimiparSiempre()
+	
 	
 	method experiencia()
 	{
-		
+		return self.cantidadDeTareas() + tareasRealizadas.sum({tarea => tarea.dificultad(self)})
 	}
+	
+	method cantidadDeTareas() = tareasRealizadas.size()
 	
 	method hacerTarea(tarea)
 	{
 		tareasRealizadas.add(tarea)
+		tarea.hacerTarea(self)
 	}
 	
 	method stamina() = stamina
@@ -61,6 +80,11 @@ class Biclope inherits Empleado
 			
 		super(cantidad)
 	}
+	
+	override method multiplicadorDificultad()
+	{
+		return 1
+	}
 }
 
 class Ciclope inherits Empleado
@@ -69,15 +93,52 @@ class Ciclope inherits Empleado
 	{
 		return super() / 2
 	}
+	
+	override method multiplicadorDificultad()
+	{
+		return 2
+	}
 }
 
-class Soldado
+class Rol
+{
+	method fuerza()
+	{
+		return 0
+	}
+	
+	method tieneHerramientas(_htas)
+	{
+		return false
+	}
+	
+	method estaminaPorDefender(estamina)
+	{
+		return estamina / 2
+	}
+	
+	method estaminaPorLimpiar(estamina, estaminaUsada)
+	{
+		return estaminaUsada
+	}
+	
+	method puedeLimiparSiempre() = false
+	
+	method puedeDefender() = true
+}
+
+class Soldado inherits Rol
 {
 	var practicaArma = 0
 	
-	method fuerza()
+	override method fuerza()
 	{
 		return practicaArma
+	}
+	
+	override method estaminaPorDefender(estamina)
+	{
+		return 0
 	}
 	
 	method usarArma()
@@ -85,41 +146,24 @@ class Soldado
 		practicaArma += 2
 	}
 	
-	method tieneHerramientas(_htas)
-	{
-		return false
-	}
-	
-	method puedeDefender() = true
+	override method puedeDefender() = true
 }
 
-class Mucama
+class Mucama inherits Rol
 {
-	method fuerza()
+	override method puedeLimiparSiempre() = true
+	
+	override method estaminaPorLimpiar(estamina, estaminaUsada)
 	{
 		return 0
 	}
-	
-	method tieneHerramientas(_htas)
-	{
-		return false
-	}
-	
-	method puedeDefender() = false
 }
 
-class Obrero
+class Obrero inherits Rol
 {
 	var herramientas = #{}
 	
-	method fuerza()
-	{
-		return 0
-	}
-	
-	method puedeDefender() = true
-	
-	method tieneHerramientas(_htas)
+	override method tieneHerramientas(_htas)
 	{
 		return herramientas.all({hta => _htas.contains(hta)})
 	}
@@ -153,7 +197,7 @@ class ArreglarMaquina
 		trabajador.reducirStamina(complejidad)
 	}
 	
-	method dificultad()
+	method dificultad(empleado)
 	{
 		return 2 * complejidad
 	}
@@ -179,14 +223,46 @@ class DefenederSector{
 		if(trabajador.fuerza() < gradoAmenaza)
 			throw new NoTieneSuficienteFuezaException()
 			
-		trabajador.reducirStamina(complejidad)
+		trabajador.reducirEstaminaPorDefender()
 	}
 	
-	method dificultad()
+	method dificultad(empleado)
 	{
-		return gradoAmenaza
+		return gradoAmenaza * empleado.multiplicadorDificultad()
 	}
 }
+
+class LimpiarSector{
+	var dificultad = 10 
+	
+	var staminaRequerida = 1
+	
+	constructor(esGrande)
+	{
+		if(esGrande)
+			staminaRequerida = 4
+	}
+	
+	method hacerTarea(trabajador)
+	{
+		if(!trabajador.puedeLimpiarSiempre())
+			if(trabajador.stamina() < staminaRequerida)
+				throw new StaminaMuyBajaException()
+			
+		trabajador.reducirEstaminaPorLimpiar(staminaRequerida)
+	}
+	
+	method actualizarDificultad(_dif)
+	{
+		dificultad = _dif	
+	}
+	
+	method dificultad(empleado)
+	{
+		return dificultad
+	}
+}
+
 
 
 
